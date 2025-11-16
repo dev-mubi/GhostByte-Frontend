@@ -11,11 +11,14 @@ import {
   FileText,
   X,
   Lock,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
 import logo from "./logo.png";
 
 export default function DecryptPage() {
   const [file, setFile] = useState(null);
+  const [fileUrl, setFileUrl] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -23,16 +26,54 @@ export default function DecryptPage() {
   const [originalFileName, setOriginalFileName] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [uploadMethod, setUploadMethod] = useState("file"); // "file" or "url"
+
+  const showError = (message) => {
+    setErrorMessage(message);
+    setShowErrorModal(true);
+  };
+
+  const isValidGhostByteUrl = (url) => {
+    try {
+      const urlObj = new URL(url);
+      // Check if it's a Supabase storage URL (your storage provider)
+      const validDomains = [
+        "supabase.co",
+        "supabase.com",
+        // Add your specific storage domain here if different
+      ];
+
+      const isValidDomain = validDomains.some((domain) =>
+        urlObj.hostname.includes(domain)
+      );
+
+      // Check if URL ends with .gbyte
+      const isGbyteFile = url.endsWith(".gbyte");
+
+      return isValidDomain && isGbyteFile;
+    } catch (e) {
+      return false;
+    }
+  };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      // Check if file has .gbyte extension
       if (!selectedFile.name.endsWith(".gbyte")) {
-        alert("Please select a valid .gbyte encrypted file");
+        showError("Please select a valid .gbyte encrypted file");
         return;
       }
       setFile(selectedFile);
+      setFileUrl(""); // Clear URL if file is selected
+    }
+  };
+
+  const handleUrlChange = (e) => {
+    const url = e.target.value.trim();
+    setFileUrl(url);
+    if (url && file) {
+      setFile(null); // Clear file if URL is entered
     }
   };
 
@@ -44,22 +85,51 @@ export default function DecryptPage() {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
+  const fetchFileFromUrl = async (url) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Failed to download file from URL");
+    }
+    const blob = await response.blob();
+    return blob;
+  };
+
   const handleDecrypt = async () => {
-    if (!file) {
-      alert("Please upload an encrypted .gbyte file");
+    if (!file && !fileUrl) {
+      showError("Please upload a file or enter a download link");
       return;
     }
 
     if (!password) {
-      alert("Please enter the decryption password");
+      showError("Please enter the decryption password");
       return;
+    }
+
+    // Validate URL if using URL method
+    if (fileUrl && !file) {
+      if (!isValidGhostByteUrl(fileUrl)) {
+        showError(
+          "Invalid file URL. Please use a valid GhostByte encrypted file link (.gbyte) from Supabase storage."
+        );
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      const encryptedBuffer = await file.arrayBuffer();
-      const encryptedBytes = new Uint8Array(encryptedBuffer);
+      let encryptedBytes;
+
+      if (fileUrl && !file) {
+        // Fetch file from URL
+        const blob = await fetchFileFromUrl(fileUrl);
+        const arrayBuffer = await blob.arrayBuffer();
+        encryptedBytes = new Uint8Array(arrayBuffer);
+      } else {
+        // Use uploaded file
+        const encryptedBuffer = await file.arrayBuffer();
+        encryptedBytes = new Uint8Array(encryptedBuffer);
+      }
 
       const decryptedBytes = await decryptFile(encryptedBytes, password);
 
@@ -71,7 +141,13 @@ export default function DecryptPage() {
       setDecryptedBlob(blob);
       setShowSuccessModal(true);
     } catch (err) {
-      setShowErrorModal(true);
+      if (err.message.includes("Failed to download")) {
+        showError(
+          "Could not download file from the provided URL. Please check the link and try again."
+        );
+      } else {
+        setShowErrorModal(true);
+      }
       console.error("Decryption error:", err);
     } finally {
       setLoading(false);
@@ -92,6 +168,7 @@ export default function DecryptPage() {
   const handleDecryptAnother = () => {
     setShowSuccessModal(false);
     setFile(null);
+    setFileUrl("");
     setPassword("");
     setDecryptedBlob(null);
     setOriginalFileName("");
@@ -120,7 +197,7 @@ export default function DecryptPage() {
             {[
               { name: "Home", path: "/" },
               { name: "Encrypt", path: "/encrypt" },
-              { name: "Decrypt", path: "/decrypt" },
+              //   { name: "Decrypt", path: "/decrypt" },
             ].map((item) => (
               <button
                 key={item.name}
@@ -162,53 +239,129 @@ export default function DecryptPage() {
 
         {/* Decryption Card */}
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-[#5A5DFF]/10">
-          {/* File Upload Section */}
+          {/* Method Toggle */}
           <div className="mb-8">
-            <label className="block text-sm font-semibold text-[#1B1E28] mb-3">
-              Upload Encrypted File (.gbyte)
-            </label>
-
-            <div className="relative">
-              <input
-                type="file"
-                accept=".gbyte"
-                onChange={handleFileChange}
-                className="hidden"
-                id="file-upload"
-              />
-              <label
-                htmlFor="file-upload"
-                className="flex items-center justify-center w-full p-8 border-2 border-dashed border-[#5A5DFF]/30 rounded-2xl cursor-pointer hover:border-[#5A5DFF] hover:bg-[#F8F9FF] transition-all duration-300 group"
+            <div className="flex gap-2 p-1 bg-[#F8F9FF] rounded-xl border border-[#5A5DFF]/10">
+              <button
+                onClick={() => setUploadMethod("file")}
+                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                  uploadMethod === "file"
+                    ? "bg-gradient-to-r from-[#5A5DFF] to-[#7B7EFF] text-white shadow-md"
+                    : "text-gray-600 hover:text-[#5A5DFF]"
+                }`}
               >
-                {!file ? (
-                  <div className="text-center">
-                    <Upload className="w-12 h-12 text-[#5A5DFF] mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                    <p className="text-[#1B1E28] font-semibold mb-1">
-                      Click to upload .gbyte file
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Only encrypted GhostByte files
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-4 w-full">
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#5A5DFF] to-[#9DA2FF] rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Lock className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="text-left flex-1 min-w-0">
-                      <p className="font-semibold text-[#1B1E28] truncate">
-                        {file.name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {formatFileSize(file.size)}
-                      </p>
-                    </div>
-                    <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
-                  </div>
-                )}
-              </label>
+                <Upload className="w-5 h-5" />
+                Upload File
+              </button>
+              <button
+                onClick={() => setUploadMethod("url")}
+                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                  uploadMethod === "url"
+                    ? "bg-gradient-to-r from-[#5A5DFF] to-[#7B7EFF] text-white shadow-md"
+                    : "text-gray-600 hover:text-[#5A5DFF]"
+                }`}
+              >
+                <Link2 className="w-5 h-5" />
+                Paste Link
+              </button>
             </div>
           </div>
+
+          {/* File Upload Section */}
+          {uploadMethod === "file" && (
+            <div className="mb-8">
+              <label className="block text-sm font-semibold text-[#1B1E28] mb-3">
+                Upload Encrypted File (.gbyte)
+              </label>
+
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".gbyte"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="flex items-center justify-center w-full p-8 border-2 border-dashed border-[#5A5DFF]/30 rounded-2xl cursor-pointer hover:border-[#5A5DFF] hover:bg-[#F8F9FF] transition-all duration-300 group"
+                >
+                  {!file ? (
+                    <div className="text-center">
+                      <Upload className="w-12 h-12 text-[#5A5DFF] mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                      <p className="text-[#1B1E28] font-semibold mb-1">
+                        Click to upload .gbyte file
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Only encrypted GhostByte files
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4 w-full">
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#5A5DFF] to-[#9DA2FF] rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Lock className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="text-left flex-1 min-w-0">
+                        <p className="font-semibold text-[#1B1E28] truncate">
+                          {file.name}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {formatFileSize(file.size)}
+                        </p>
+                      </div>
+                      <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+                    </div>
+                  )}
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* URL Input Section */}
+          {uploadMethod === "url" && (
+            <div className="mb-8">
+              <label className="block text-sm font-semibold text-[#1B1E28] mb-3">
+                Encrypted File Download Link
+              </label>
+
+              <div className="relative">
+                <input
+                  type="url"
+                  placeholder="https://example.supabase.co/storage/.../file.gbyte"
+                  value={fileUrl}
+                  onChange={handleUrlChange}
+                  className="w-full px-4 py-4 pr-12 border-2 border-[#5A5DFF]/30 rounded-xl focus:border-[#5A5DFF] focus:outline-none transition-colors duration-200 text-[#1B1E28] font-mono text-sm"
+                />
+                <ExternalLink className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              </div>
+
+              {fileUrl && isValidGhostByteUrl(fileUrl) && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Valid GhostByte encrypted file link</span>
+                </div>
+              )}
+
+              {fileUrl && !isValidGhostByteUrl(fileUrl) && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-red-600">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>
+                    Invalid link. Must be a .gbyte file from Supabase storage
+                  </span>
+                </div>
+              )}
+
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-blue-800 leading-relaxed">
+                    Paste the download link you received from the sender. The
+                    file will be downloaded and decrypted automatically.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Password Section */}
           <div className="mb-8">
@@ -257,7 +410,7 @@ export default function DecryptPage() {
           {/* Decrypt Button */}
           <button
             onClick={handleDecrypt}
-            disabled={!file || !password || loading}
+            disabled={(!file && !fileUrl) || !password || loading}
             className="w-full py-4 bg-gradient-to-r from-[#5A5DFF] to-[#7B7EFF] text-white rounded-xl font-bold text-lg
             hover:from-[#4A4DDF] hover:to-[#6B6EEF] disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed
             shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2"
@@ -265,7 +418,9 @@ export default function DecryptPage() {
             {loading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Decrypting...
+                {uploadMethod === "url"
+                  ? "Downloading & Decrypting..."
+                  : "Decrypting..."}
               </>
             ) : (
               <>
@@ -283,15 +438,29 @@ export default function DecryptPage() {
               <AlertCircle className="w-5 h-5 text-[#5A5DFF]" />
             </div>
             <div>
-              <h3 className="font-bold text-[#1B1E28] mb-2">Need Help?</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Make sure you're using the correct .gbyte file</li>
-                <li>• Use the exact password that was used for encryption</li>
-                <li>• Passwords are case-sensitive</li>
-                <li>
-                  • If decryption fails, verify the password with the sender
+              <h3 className="font-bold text-[#1B1E28] mb-2">
+                Two Ways to Decrypt:
+              </h3>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="font-bold text-[#5A5DFF] mt-0.5">1.</span>
+                  <span>
+                    <strong>Upload File:</strong> Download the .gbyte file
+                    first, then upload it here
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-bold text-[#5A5DFF] mt-0.5">2.</span>
+                  <span>
+                    <strong>Paste Link:</strong> Paste the download link
+                    directly without downloading the file
+                  </span>
                 </li>
               </ul>
+              <p className="text-xs text-gray-500 mt-3">
+                💡 Tip: Make sure you're using the correct password
+                (case-sensitive)
+              </p>
             </div>
           </div>
         </div>
@@ -388,43 +557,46 @@ export default function DecryptPage() {
             </div>
 
             <h2 className="text-3xl font-bold text-center text-[#1B1E28] mb-3">
-              Decryption Failed
+              {errorMessage || "Decryption Failed"}
             </h2>
             <p className="text-center text-gray-600 mb-8">
-              We couldn't decrypt your file. This usually happens when:
+              {errorMessage
+                ? "Please check and try again."
+                : "We couldn't decrypt your file. This usually happens when:"}
             </p>
 
-            {/* Error Reasons */}
-            <div className="mb-8 space-y-3">
-              <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
-                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-sm font-bold">1</span>
+            {!errorMessage && (
+              <div className="mb-8 space-y-3">
+                <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+                  <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-white text-sm font-bold">1</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#1B1E28] mb-1">
+                      Incorrect Password
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      The password you entered doesn't match. Passwords are
+                      case-sensitive.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-[#1B1E28] mb-1">
-                    Incorrect Password
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    The password you entered doesn't match. Passwords are
-                    case-sensitive.
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
-                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-sm font-bold">2</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-[#1B1E28] mb-1">
-                    Corrupted File
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    The file may have been damaged during transfer or storage.
-                  </p>
+                <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+                  <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-white text-sm font-bold">2</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#1B1E28] mb-1">
+                      Corrupted File
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      The file may have been damaged during transfer or storage.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Actions */}
             <div className="space-y-3">
@@ -443,7 +615,7 @@ export default function DecryptPage() {
                 }}
                 className="w-full py-3 bg-gray-100 text-[#1B1E28] rounded-xl font-semibold hover:bg-gray-200 transition-colors"
               >
-                Upload Different File
+                Start Over
               </button>
             </div>
           </div>

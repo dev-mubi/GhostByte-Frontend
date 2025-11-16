@@ -13,7 +13,9 @@ import {
   Check,
   X,
   FileText,
-  Home,
+  Download,
+  Link2,
+  Info,
 } from "lucide-react";
 import logo from "./logo.png";
 
@@ -25,6 +27,8 @@ export default function EncryptPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Password validation
   const passwordRequirements = [
@@ -43,19 +47,24 @@ export default function EncryptPage() {
     }
   };
 
+  const showError = (message) => {
+    setErrorMessage(message);
+    setShowErrorModal(true);
+  };
+
   const handleEncrypt = async () => {
     if (!file) {
-      alert("Please select a file to encrypt");
+      showError("Please select a file to encrypt");
       return;
     }
 
     if (!password) {
-      alert("Please enter a password");
+      showError("Please enter a password");
       return;
     }
 
     if (!isPasswordValid) {
-      alert("Please meet all password requirements");
+      showError("Please meet all password requirements");
       return;
     }
 
@@ -73,7 +82,7 @@ export default function EncryptPage() {
       setLink(downloadUrl);
       setShowSuccessModal(true);
     } catch (error) {
-      alert("Encryption failed: " + error.message);
+      showError("Encryption failed: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -93,13 +102,35 @@ export default function EncryptPage() {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
+  const decryptPageUrl = "https://ghostbyte-mubi.vercel.app/decrypt";
+
   const shareMessage = `🔒 Encrypted File from GhostByte
 
-Download Link: ${link}
+📥 DIRECT DOWNLOAD (Encrypted File):
+${link}
+↳ Click to download the encrypted .gbyte file
 
-Password: ${password}
+🔓 DECRYPT ONLINE:
+${decryptPageUrl}
+↳ Paste the download link above and enter password
 
-⚠️ Keep this password safe! You'll need it to decrypt the file.`;
+🔑 Password: ${password}
+
+━━━━━━━━━━━━━━━━━━━━━━
+⚠️ IMPORTANT INSTRUCTIONS:
+
+Option 1 - Direct Download:
+  • Click the download link to get the .gbyte file
+  • Go to ${decryptPageUrl}
+  • Upload the .gbyte file and enter password
+
+Option 2 - Paste Link:
+  • Go to ${decryptPageUrl}
+  • Paste the download link in the URL field
+  • Enter password to decrypt
+
+⚠️ Keep this password safe! Without it, the file cannot be decrypted.
+━━━━━━━━━━━━━━━━━━━━━━`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F8F9FF] via-[#EEF0FF] to-[#E8EBFF] relative">
@@ -123,7 +154,7 @@ Password: ${password}
           <div className="flex items-center gap-6">
             {[
               { name: "Home", path: "/" },
-              { name: "Encrypt", path: "/encrypt" },
+              //   { name: "Encrypt", path: "/encrypt" },
               { name: "Decrypt", path: "/decrypt" },
             ].map((item) => (
               <button
@@ -310,7 +341,7 @@ Password: ${password}
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 relative animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8 relative animate-fadeIn">
             <button
               onClick={() => setShowSuccessModal(false)}
               className="absolute top-6 right-6 text-gray-400 hover:text-[#1B1E28] transition-colors"
@@ -329,14 +360,15 @@ Password: ${password}
               File Encrypted Successfully!
             </h2>
             <p className="text-center text-gray-600 mb-8">
-              Your file has been encrypted and uploaded securely. Share the link
-              and password below.
+              Your file has been encrypted and uploaded securely. Choose how to
+              share it below.
             </p>
 
             {/* Download Link */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-[#1B1E28] mb-2">
-                Download Link
+              <label className="block text-sm font-semibold text-[#1B1E28] mb-2 flex items-center gap-2">
+                <Download className="w-4 h-4" />
+                Direct Download Link (Encrypted File)
               </label>
               <div className="flex gap-2">
                 <input
@@ -356,12 +388,45 @@ Password: ${password}
                   )}
                 </button>
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Click this link to download the encrypted .gbyte file
+              </p>
+            </div>
+
+            {/* Decrypt Page Link */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-[#1B1E28] mb-2 flex items-center gap-2">
+                <Link2 className="w-4 h-4" />
+                Decryption Page
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={decryptPageUrl}
+                  readOnly
+                  className="flex-1 px-4 py-3 bg-[#F8F9FF] border-2 border-[#5A5DFF]/20 rounded-xl text-sm text-[#1B1E28] font-mono"
+                />
+                <button
+                  onClick={() => copyToClipboard(decryptPageUrl)}
+                  className="px-4 py-3 bg-[#5A5DFF] text-white rounded-xl hover:bg-[#4A4DDF] transition-colors flex items-center gap-2"
+                >
+                  {copied ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Share this page where the recipient can paste the download link
+              </p>
             </div>
 
             {/* Password Display */}
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-[#1B1E28] mb-2">
-                Encryption Password
+              <label className="block text-sm font-semibold text-[#1B1E28] mb-2 flex items-center gap-2">
+                <Lock className="w-4 h-4" />
+                Decryption Password
               </label>
               <div className="flex gap-2">
                 <input
@@ -383,17 +448,17 @@ Password: ${password}
               </div>
             </div>
 
-            {/* Share Message */}
+            {/* Complete Share Message */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-[#1B1E28] mb-2">
-                Share This Message
+                Complete Message (Copy & Share)
               </label>
               <div className="relative">
                 <textarea
                   value={shareMessage}
                   readOnly
-                  rows={7}
-                  className="w-full px-4 py-3 bg-[#F8F9FF] border-2 border-[#5A5DFF]/20 rounded-xl text-sm text-[#1B1E28] font-mono resize-none"
+                  rows={12}
+                  className="w-full px-4 py-3 bg-[#F8F9FF] border-2 border-[#5A5DFF]/20 rounded-xl text-xs text-[#1B1E28] font-mono resize-none"
                 />
                 <button
                   onClick={() => copyToClipboard(shareMessage)}
@@ -408,19 +473,53 @@ Password: ${password}
                 </button>
               </div>
             </div>
+            {/* How to Decrypt Info Box */}
+            <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-900 mb-2">
+                    How the recipient can decrypt the file:
+                  </p>
 
+                  <div className="space-y-3 text-xs text-blue-800 leading-relaxed">
+                    <div>
+                      <span className="font-bold block mb-1">
+                        Option 1 — Using the file:
+                      </span>
+                      <span>
+                        Download the encrypted <code>.gbyte</code> file, go to
+                        the Decrypt page, upload the file, and enter the
+                        password.
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="font-bold block mb-1">
+                        Option 2 — Using the download link:
+                      </span>
+                      <span>
+                        Open the Decrypt page, paste the shared download link
+                        into the URL field, enter the password, and decrypt
+                        instantly without downloading the file first.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Warning */}
             <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-xl mb-6">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-semibold text-amber-900 mb-1">
-                    Important
+                    Important Security Note
                   </p>
                   <p className="text-xs text-amber-700 leading-relaxed">
-                    Make sure to share both the link and password with the
-                    recipient. Without the password, the file cannot be
-                    decrypted. Keep it safe!
+                    The recipient needs BOTH the download link AND the password.
+                    The file cannot be decrypted without the password. Store it
+                    securely and share via a secure channel.
                   </p>
                 </div>
               </div>
@@ -446,6 +545,39 @@ Password: ${password}
                 Go to Decrypt
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative animate-fadeIn">
+            <button
+              onClick={() => setShowErrorModal(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-[#1B1E28] transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Error Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center shadow-lg">
+                <AlertCircle className="w-10 h-10 text-white" />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-center text-[#1B1E28] mb-3">
+              Oops!
+            </h2>
+            <p className="text-center text-gray-600 mb-8">{errorMessage}</p>
+
+            <button
+              onClick={() => setShowErrorModal(false)}
+              className="w-full py-3 bg-gradient-to-r from-[#5A5DFF] to-[#7B7EFF] text-white rounded-xl font-semibold hover:from-[#4A4DDF] hover:to-[#6B6EEF] transition-colors"
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}
