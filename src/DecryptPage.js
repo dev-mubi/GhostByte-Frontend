@@ -487,6 +487,8 @@ export default function DecryptPage() {
             <h2 className="text-3xl font-bold text-center text-[#1B1E28] mb-3">
               File Decrypted Successfully!
             </h2>
+            <p>Debug: {originalFileName}</p>
+
             <p className="text-center text-gray-600 mb-8">
               Your file has been decrypted and is ready to download.
             </p>
