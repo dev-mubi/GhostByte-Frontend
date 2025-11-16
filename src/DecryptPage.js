@@ -13,8 +13,10 @@ import {
   Lock,
   Link2,
   ExternalLink,
+  Menu,
 } from "lucide-react";
 import logo from "./logo.png";
+import { useNavigate } from "react-router-dom";
 
 export default function DecryptPage() {
   const [file, setFile] = useState(null);
@@ -29,6 +31,10 @@ export default function DecryptPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [uploadMethod, setUploadMethod] = useState("file");
   const [prefilledFromQR, setPrefilledFromQR] = useState(false);
+
+  const [scrolled, setScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   const showError = (message) => {
     setErrorMessage(message);
@@ -92,7 +98,6 @@ export default function DecryptPage() {
       const currentUrl = new URL(window.location.href);
       const downloadParam = currentUrl.searchParams.get("download");
       if (downloadParam) {
-        // URLSearchParams already decodes, but keep it simple
         const decoded = downloadParam;
         setUploadMethod("url");
         setFileUrl(decoded);
@@ -102,6 +107,27 @@ export default function DecryptPage() {
       // ignore parsing errors
     }
   }, []);
+
+  // =============================
+  //   NAVBAR SCROLL EFFECT
+  // =============================
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleNavigate = (path) => {
+    setIsMobileMenuOpen(false);
+    navigate(path);
+  };
+
+  const navItems = [
+    { label: "Home", path: "/" },
+    { label: "Encrypt", path: "/encrypt" },
+    { label: "Decrypt", path: "/decrypt" },
+    { label: "About", path: "/about" },
+  ];
 
   // =============================
   //     UPDATED DECRYPT LOGIC
@@ -193,52 +219,99 @@ export default function DecryptPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F8F9FF] via-[#EEF0FF] to-[#E8EBFF] relative">
       {/* Navigation */}
-      <nav className="bg-white/90 backdrop-blur-xl shadow-lg border-b border-[#5A5DFF]/10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div
-            className="flex items-center gap-3 cursor-pointer group"
-            onClick={() => (window.location.href = "/")}
-          >
-            <img
-              src={logo}
-              alt="GhostByte Logo"
-              className="w-12 h-12 object-contain transition-transform duration-300 group-hover:scale-110"
-            />
-            <span className="text-xl font-bold text-[#1B1E28] group-hover:text-[#5A5DFF] transition">
-              GhostByte
-            </span>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+          scrolled
+            ? "bg-white/95 backdrop-blur-2xl shadow-xl border-b border-[#5A5DFF]/10"
+            : "bg-white/80 backdrop-blur-xl border-b border-[#5A5DFF]/5"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="py-4 flex items-center justify-between">
+            {/* Brand */}
+            <div
+              className="flex items-center gap-3 cursor-pointer group"
+              onClick={() => handleNavigate("/")}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#5A5DFF] to-[#9DA2FF] rounded-2xl blur-md opacity-50 group-hover:opacity-75 transition-opacity" />
+                <img
+                  src={logo}
+                  alt="GhostByte Logo"
+                  className="w-12 h-12 md:w-14 md:h-14 object-contain transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 relative z-10"
+                />
+              </div>
+              <span className="text-xl md:text-2xl font-bold bg-gradient-to-r from-[#1B1E28] to-[#5A5DFF] bg-clip-text text-transparent group-hover:from-[#5A5DFF] group-hover:to-[#9DA2FF] transition-all duration-300">
+                GhostByte
+              </span>
+            </div>
+
+            {/* Desktop Nav */}
+            <div className="hidden md:flex items-center gap-6 lg:gap-8">
+              {navItems.map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => handleNavigate(item.path)}
+                  className={`text-sm lg:text-base font-semibold px-2 py-1 relative group transition-all duration-300 ${
+                    item.label === "Decrypt"
+                      ? "text-[#5A5DFF]"
+                      : "text-[#1B1E28] hover:text-[#5A5DFF]"
+                  }`}
+                >
+                  {item.label}
+                  <span
+                    className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-[#5A5DFF] to-[#9DA2FF] transition-all duration-300 rounded-full ${
+                      item.label === "Decrypt"
+                        ? "w-full"
+                        : "w-0 group-hover:w-full"
+                    }`}
+                  ></span>
+                  <span className="absolute inset-0 bg-[#5A5DFF]/5 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 -z-10" />
+                </button>
+              ))}
+            </div>
+
+            {/* Mobile Hamburger */}
+            <button
+              className="md:hidden p-2 rounded-xl border border-[#E0E2FF] bg-white/80 backdrop-blur-sm shadow-sm text-[#1B1E28]"
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              aria-label="Toggle navigation"
+            >
+              {isMobileMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </button>
           </div>
 
-          <div className="flex items-center gap-6">
-            {[
-              { name: "Home", path: "/" },
-              { name: "Encrypt", path: "/encrypt" },
-            ].map((item) => (
-              <button
-                key={item.name}
-                onClick={() => (window.location.href = item.path)}
-                className={`font-semibold transition-colors duration-200 relative group ${
-                  item.name === "Decrypt"
-                    ? "text-[#5A5DFF]"
-                    : "text-[#1B1E28] hover:text-[#5A5DFF]"
-                }`}
-              >
-                {item.name}
-                <span
-                  className={`absolute bottom-0 left-0 h-0.5 bg-[#5A5DFF] transition-all duration-200 ${
-                    item.name === "Decrypt"
-                      ? "w-full"
-                      : "w-0 group-hover:w-full"
-                  }`}
-                ></span>
-              </button>
-            ))}
-          </div>
+          {/* Mobile Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden pb-4">
+              <div className="mt-2 rounded-2xl border border-[#E0E2FF]/80 bg-gradient-to-b from-white/95 via-[#EEF0FF] to-[#E8EBFF] shadow-xl backdrop-blur-xl px-4 py-3">
+                <div className="flex flex-col gap-1">
+                  {navItems.map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => handleNavigate(item.path)}
+                      className={`text-left w-full px-2 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                        item.label === "Decrypt"
+                          ? "text-[#5A5DFF] bg-[#5A5DFF]/5"
+                          : "text-[#1B1E28] hover:bg-[#5A5DFF]/5 hover:text-[#5A5DFF]"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
       {/* Main Content */}
-      <div className="max-w-3xl mx-auto px-6 py-16">
+      <div className="max-w-3xl mx-auto px-6 pt-32 md:pt-36 pb-16">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#5A5DFF] to-[#9DA2FF] rounded-2xl mb-6 shadow-xl">
@@ -488,7 +561,67 @@ export default function DecryptPage() {
           </div>
         </div>
       </div>
+      {/* Footer */}
+      <footer className="bg-[#1B1E28] text-white py-14 md:py-16 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#5A5DFF]/10 to-transparent" />
 
+        <div className="max-w-7xl mx-auto text-center relative z-10">
+          {/* Brand */}
+          <div
+            className="flex items-center justify-center gap-3 md:gap-4 mb-5 md:mb-6 group cursor-pointer"
+            onClick={() => handleNavigate("/")}
+          >
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#5A5DFF] to-[#9DA2FF] rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+            </div>
+
+            <span
+              className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-[#9DA2FF]
+              bg-clip-text text-transparent group-hover:from-[#9DA2FF] group-hover:to-white
+              transition-all duration-300"
+            >
+              GhostByte
+            </span>
+          </div>
+
+          {/* Links */}
+          <div className="flex justify-center flex-wrap gap-5 md:gap-8 mb-5 md:mb-6 text-sm md:text-base">
+            <button
+              onClick={() => handleNavigate("/about")}
+              className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+            >
+              About
+            </button>
+
+            <a
+              href="https://mubashir-shahzaib.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+            >
+              Portfolio
+            </a>
+
+            <a
+              href="https://github.com/dev-mubi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-300 hover:text-white transition-colors duration-200 font-medium"
+            >
+              GitHub
+            </a>
+          </div>
+
+          {/* Divider */}
+          <div className="w-20 md:w-24 h-[2px] bg-[#5A5DFF]/40 mx-auto mb-4 md:mb-6 rounded-full"></div>
+
+          {/* Footer Line */}
+          <p className="text-gray-500 text-xs md:text-sm">
+            © {new Date().getFullYear()} GhostByte — Developed by Mubashir
+            Shahzaib
+          </p>
+        </div>
+      </footer>
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
