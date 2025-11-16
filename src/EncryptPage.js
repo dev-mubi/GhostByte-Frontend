@@ -16,7 +16,10 @@ import {
   Download,
   Link2,
   Info,
+  Sparkles,
+  QrCode,
 } from "lucide-react";
+import QRCode from "react-qr-code";
 import logo from "./logo.png";
 
 export default function EncryptPage() {
@@ -39,6 +42,39 @@ export default function EncryptPage() {
   ];
 
   const isPasswordValid = passwordRequirements.every((req) => req.met);
+
+  // Generate strong password function
+  const generateStrongPassword = () => {
+    const length = 16;
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const lowercase = "abcdefghijklmnopqrstuvwxyz";
+    const numbers = "0123456789";
+    const allChars = uppercase + lowercase + numbers;
+
+    let generatedPassword = "";
+
+    // Ensure at least one character from each required category
+    generatedPassword +=
+      uppercase[Math.floor(Math.random() * uppercase.length)];
+    generatedPassword +=
+      lowercase[Math.floor(Math.random() * lowercase.length)];
+    generatedPassword += numbers[Math.floor(Math.random() * numbers.length)];
+
+    // Fill the rest randomly
+    for (let i = 3; i < length; i++) {
+      generatedPassword +=
+        allChars[Math.floor(Math.random() * allChars.length)];
+    }
+
+    // Shuffle the password to avoid predictable patterns
+    generatedPassword = generatedPassword
+      .split("")
+      .sort(() => Math.random() - 0.5)
+      .join("");
+
+    setPassword(generatedPassword);
+    setShowPassword(true); // Show the generated password
+  };
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -71,7 +107,6 @@ export default function EncryptPage() {
     setLoading(true);
 
     try {
-      // 🔥 Updated to match new cryptoUtils structure
       const arrayBuffer = await file.arrayBuffer();
       const encryptedBytes = await encryptFile(
         arrayBuffer,
@@ -79,14 +114,10 @@ export default function EncryptPage() {
         file.name
       );
 
-      // Upload encrypted .gbyte file
-      const { downloadUrl, originalName } = await uploadEncryptedFile(
+      const { downloadUrl } = await uploadEncryptedFile(
         encryptedBytes,
         file.name
       );
-
-      // ❌ REMOVE old localStorage logic — no longer needed
-      // localStorage.setItem("originalFilename", originalName);
 
       setLink(downloadUrl);
       setShowSuccessModal(true);
@@ -113,33 +144,39 @@ export default function EncryptPage() {
 
   const decryptPageUrl = "https://ghostbyte-mubi.vercel.app/decrypt";
 
-  const shareMessage = `🔒 Encrypted File from GhostByte
+  // QR code URL: decrypt page with download link pre-filled as a query param
+  const qrUrl =
+    link && link.length > 0
+      ? `${decryptPageUrl}?download=${encodeURIComponent(link)}`
+      : decryptPageUrl;
 
-📥 DIRECT DOWNLOAD (Encrypted File):
+  const shareMessage = `ENCRYPTED FILE FROM GHOSTBYTE
+
+DIRECT DOWNLOAD (Encrypted File):
 ${link}
-↳ Click to download the encrypted .gbyte file
+Click to download the encrypted .gbyte file
 
-🔓 DECRYPT ONLINE:
+DECRYPT ONLINE:
 ${decryptPageUrl}
-↳ Paste the download link above and enter password
+Paste the download link above and enter password
 
-🔑 Password: ${password}
+PASSWORD: ${password}
 
-━━━━━━━━━━━━━━━━━━━━━━
-⚠️ IMPORTANT INSTRUCTIONS:
+----------------------------------------
+IMPORTANT INSTRUCTIONS:
 
 Option 1 - Direct Download:
-  • Click the download link to get the .gbyte file
-  • Go to ${decryptPageUrl}
-  • Upload the .gbyte file and enter password
+• Click the download link to get the .gbyte file
+• Go to ${decryptPageUrl}
+• Upload the .gbyte file and enter password
 
 Option 2 - Paste Link:
-  • Go to ${decryptPageUrl}
-  • Paste the download link in the URL field
-  • Enter password to decrypt
+• Go to ${decryptPageUrl}
+• Paste the download link in the URL field
+• Enter password to decrypt
 
-⚠️ Keep this password safe! Without it, the file cannot be decrypted.
-━━━━━━━━━━━━━━━━━━━━━━`;
+Keep this password safe. Without it, the file cannot be decrypted.
+----------------------------------------`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F8F9FF] via-[#EEF0FF] to-[#E8EBFF] relative">
@@ -277,6 +314,16 @@ Option 2 - Paste Link:
               </button>
             </div>
 
+            {/* Generate password button UNDER the input */}
+            <button
+              type="button"
+              onClick={generateStrongPassword}
+              className="mt-3 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-[#5A5DFF] bg-[#F4F5FF] hover:bg-[#E3E5FF] rounded-lg border border-[#5A5DFF]/30 shadow-sm transition-colors duration-200"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generate strong password
+            </button>
+
             {password && (
               <div className="mt-4 p-4 bg-[#F8F9FF] rounded-xl border border-[#5A5DFF]/10">
                 <p className="text-sm font-semibold text-[#1B1E28] mb-3">
@@ -345,7 +392,7 @@ Option 2 - Paste Link:
         </div>
       </div>
 
-      {/* ================= SUCCESS MODAL ================= */}
+      {/* SUCCESS MODAL */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8 relative animate-fadeIn">
@@ -454,6 +501,35 @@ Option 2 - Paste Link:
               </div>
             </div>
 
+            {/* QR Code Section */}
+            {link && (
+              <div className="mb-8">
+                <label className="block text-sm font-semibold text-[#1B1E28] mb-2 flex items-center gap-2">
+                  <QrCode className="w-4 h-4" />
+                  QR Code (scan to open decrypt page with link)
+                </label>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+                  <div className="p-4 bg-[#F8F9FF] border-2 border-[#5A5DFF]/20 rounded-2xl flex items-center justify-center">
+                    <QRCode
+                      value={qrUrl}
+                      size={140}
+                      style={{
+                        height: "auto",
+                        maxWidth: "100%",
+                        width: "100%",
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-600 leading-relaxed max-w-xs">
+                    Scan this QR code on another device. It opens the GhostByte
+                    decrypt page with the encrypted file link already filled in.
+                    Then enter the password shown above to decrypt and download
+                    the file on that device.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Complete Share Message */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-[#1B1E28] mb-2">
@@ -463,7 +539,7 @@ Option 2 - Paste Link:
                 <textarea
                   value={shareMessage}
                   readOnly
-                  rows={12}
+                  rows={14}
                   className="w-full px-4 py-3 bg-[#F8F9FF] border-2 border-[#5A5DFF]/20 rounded-xl text-xs text-[#1B1E28] font-mono resize-none"
                 />
                 <button
@@ -480,36 +556,36 @@ Option 2 - Paste Link:
               </div>
             </div>
 
-            {/* Decryption Tips */}
+            {/* Decryption Instructions */}
             <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">
-                    How the recipient can decrypt the file:
+                  <p className="text-sm font-semibold text-blue-900 mb-3">
+                    How the recipient can decrypt:
                   </p>
-
-                  <div className="space-y-3 text-xs text-blue-800 leading-relaxed">
-                    <div>
-                      <span className="font-bold block mb-1">
-                        Option 1 — Using the file:
-                      </span>
-                      <span>
-                        Download the encrypted <code>.gbyte</code> file, go to
-                        the Decrypt page, upload the file, and enter the
-                        password.
-                      </span>
+                  <div className="space-y-4 text-xs text-blue-800">
+                    <div className="bg-white/50 p-3 rounded-lg">
+                      <p className="font-bold text-blue-900 mb-2">
+                        Option 1: Download and Upload
+                      </p>
+                      <ol className="space-y-1 ml-4 list-decimal">
+                        <li>Click the download link to get the .gbyte file</li>
+                        <li>Go to the decrypt page</li>
+                        <li>Upload the .gbyte file</li>
+                        <li>Enter the password and decrypt</li>
+                      </ol>
                     </div>
-
-                    <div>
-                      <span className="font-bold block mb-1">
-                        Option 2 — Using the download link:
-                      </span>
-                      <span>
-                        Open the Decrypt page, paste the shared download link
-                        into the URL field, enter the password, and decrypt
-                        instantly without downloading the file first.
-                      </span>
+                    <div className="bg-white/50 p-3 rounded-lg">
+                      <p className="font-bold text-blue-900 mb-2">
+                        Option 2: Direct Link (Faster)
+                      </p>
+                      <ol className="space-y-1 ml-4 list-decimal">
+                        <li>Go to the decrypt page</li>
+                        <li>Click "Paste Link" tab</li>
+                        <li>Paste the download link in the URL field</li>
+                        <li>Enter the password and decrypt</li>
+                      </ol>
                     </div>
                   </div>
                 </div>
@@ -525,7 +601,7 @@ Option 2 - Paste Link:
                     Important Security Note
                   </p>
                   <p className="text-xs text-amber-700 leading-relaxed">
-                    The recipient needs BOTH the download link AND the password.
+                    The recipient needs both the download link and the password.
                     The file cannot be decrypted without the password. Store it
                     securely and share via a secure channel.
                   </p>
@@ -557,7 +633,7 @@ Option 2 - Paste Link:
         </div>
       )}
 
-      {/* ================ ERROR MODAL ================ */}
+      {/* ERROR MODAL */}
       {showErrorModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative animate-fadeIn">

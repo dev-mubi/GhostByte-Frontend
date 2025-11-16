@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { decryptFile } from "./cryptoUtils";
 import {
   Shield,
@@ -28,6 +28,7 @@ export default function DecryptPage() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [uploadMethod, setUploadMethod] = useState("file");
+  const [prefilledFromQR, setPrefilledFromQR] = useState(false);
 
   const showError = (message) => {
     setErrorMessage(message);
@@ -64,6 +65,7 @@ export default function DecryptPage() {
     const url = e.target.value.trim();
     setFileUrl(url);
     if (url && file) setFile(null);
+    if (prefilledFromQR) setPrefilledFromQR(false);
   };
 
   const formatFileSize = (bytes) => {
@@ -80,6 +82,26 @@ export default function DecryptPage() {
     const blob = await response.blob();
     return blob;
   };
+
+  // =============================
+  //   READ ?download= FROM URL
+  // =============================
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const currentUrl = new URL(window.location.href);
+      const downloadParam = currentUrl.searchParams.get("download");
+      if (downloadParam) {
+        // URLSearchParams already decodes, but keep it simple
+        const decoded = downloadParam;
+        setUploadMethod("url");
+        setFileUrl(decoded);
+        setPrefilledFromQR(true);
+      }
+    } catch (e) {
+      // ignore parsing errors
+    }
+  }, []);
 
   // =============================
   //     UPDATED DECRYPT LOGIC
@@ -118,9 +140,6 @@ export default function DecryptPage() {
         encryptedBytes = new Uint8Array(encryptedBuffer);
       }
 
-      // ==========================================
-      // NEW: decode using new cryptoUtils format
-      // ==========================================
       const { originalName, data } = await decryptFile(
         encryptedBytes,
         password
@@ -128,7 +147,6 @@ export default function DecryptPage() {
 
       setOriginalFileName(originalName);
 
-      // Actual decrypted blob
       const blob = new Blob([data]);
       setDecryptedBlob(blob);
 
@@ -168,6 +186,8 @@ export default function DecryptPage() {
     setPassword("");
     setDecryptedBlob(null);
     setOriginalFileName("");
+    setPrefilledFromQR(false);
+    setUploadMethod("file");
   };
 
   return (
@@ -193,7 +213,6 @@ export default function DecryptPage() {
             {[
               { name: "Home", path: "/" },
               { name: "Encrypt", path: "/encrypt" },
-              //   { name: "Decrypt", path: "/decrypt" },
             ].map((item) => (
               <button
                 key={item.name}
@@ -331,6 +350,13 @@ export default function DecryptPage() {
                 <ExternalLink className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               </div>
 
+              {prefilledFromQR && fileUrl && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-blue-600">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Link pre-filled from QR code</span>
+                </div>
+              )}
+
               {fileUrl && isValidGhostByteUrl(fileUrl) && (
                 <div className="mt-3 flex items-center gap-2 text-sm text-green-600">
                   <CheckCircle className="w-4 h-4" />
@@ -338,7 +364,7 @@ export default function DecryptPage() {
                 </div>
               )}
 
-              {fileUrl && !isValidGhostByteUrl(fileUrl) && (
+              {fileUrl && !isValidGhostByteUrl(fileUrl) && !prefilledFromQR && (
                 <div className="mt-3 flex items-center gap-2 text-sm text-red-600">
                   <AlertCircle className="w-4 h-4" />
                   <span>
@@ -351,8 +377,9 @@ export default function DecryptPage() {
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-blue-800 leading-relaxed">
-                    Paste the download link you received from the sender. The
-                    file will be downloaded and decrypted automatically.
+                    Paste the download link you received from the sender, or
+                    scan their QR code. The file will be downloaded and
+                    decrypted locally after you enter the password.
                   </p>
                 </div>
               </div>
@@ -442,20 +469,20 @@ export default function DecryptPage() {
                   <span className="font-bold text-[#5A5DFF] mt-0.5">1.</span>
                   <span>
                     <strong>Upload File:</strong> Download the .gbyte file
-                    first, then upload it here
+                    first, then upload it here.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-bold text-[#5A5DFF] mt-0.5">2.</span>
                   <span>
                     <strong>Paste Link:</strong> Paste the download link
-                    directly without downloading the file
+                    directly or scan the QR code shared with you.
                   </span>
                 </li>
               </ul>
               <p className="text-xs text-gray-500 mt-3">
-                💡 Tip: Make sure you're using the correct password
-                (case-sensitive)
+                Tip: Make sure you're using the correct password
+                (case-sensitive).
               </p>
             </div>
           </div>
@@ -483,7 +510,6 @@ export default function DecryptPage() {
             <h2 className="text-3xl font-bold text-center text-[#1B1E28] mb-3">
               File Decrypted Successfully!
             </h2>
-            <p>Debug: {originalFileName}</p>
 
             <p className="text-center text-gray-600 mb-8">
               Your file has been decrypted and is ready to download.
@@ -528,8 +554,7 @@ export default function DecryptPage() {
             {/* Security Note */}
             <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-xs text-green-800 text-center">
-                <span className="font-semibold">🔒 Secure:</span> Your file was
-                decrypted locally in your browser
+                Your file was decrypted locally in your browser.
               </p>
             </div>
           </div>
