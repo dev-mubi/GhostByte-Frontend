@@ -71,14 +71,23 @@ export default function EncryptPage() {
     setLoading(true);
 
     try {
+      // 🔥 Updated to match new cryptoUtils structure
       const arrayBuffer = await file.arrayBuffer();
-      const encryptedBytes = await encryptFile(arrayBuffer, password);
+      const encryptedBytes = await encryptFile(
+        arrayBuffer,
+        password,
+        file.name
+      );
+
+      // Upload encrypted .gbyte file
       const { downloadUrl, originalName } = await uploadEncryptedFile(
         encryptedBytes,
         file.name
       );
 
-      localStorage.setItem("originalFilename", originalName);
+      // ❌ REMOVE old localStorage logic — no longer needed
+      // localStorage.setItem("originalFilename", originalName);
+
       setLink(downloadUrl);
       setShowSuccessModal(true);
     } catch (error) {
@@ -154,7 +163,6 @@ Option 2 - Paste Link:
           <div className="flex items-center gap-6">
             {[
               { name: "Home", path: "/" },
-              //   { name: "Encrypt", path: "/encrypt" },
               { name: "Decrypt", path: "/decrypt" },
             ].map((item) => (
               <button
@@ -269,7 +277,6 @@ Option 2 - Paste Link:
               </button>
             </div>
 
-            {/* Password Requirements */}
             {password && (
               <div className="mt-4 p-4 bg-[#F8F9FF] rounded-xl border border-[#5A5DFF]/10">
                 <p className="text-sm font-semibold text-[#1B1E28] mb-3">
@@ -338,7 +345,7 @@ Option 2 - Paste Link:
         </div>
       </div>
 
-      {/* Success Modal */}
+      {/* ================= SUCCESS MODAL ================= */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8 relative animate-fadeIn">
@@ -349,7 +356,6 @@ Option 2 - Paste Link:
               <X className="w-6 h-6" />
             </button>
 
-            {/* Success Icon */}
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg">
                 <CheckCircle className="w-10 h-10 text-white" />
@@ -473,7 +479,8 @@ Option 2 - Paste Link:
                 </button>
               </div>
             </div>
-            {/* How to Decrypt Info Box */}
+
+            {/* Decryption Tips */}
             <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -508,6 +515,7 @@ Option 2 - Paste Link:
                 </div>
               </div>
             </div>
+
             {/* Warning */}
             <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-xl mb-6">
               <div className="flex items-start gap-3">
@@ -525,7 +533,7 @@ Option 2 - Paste Link:
               </div>
             </div>
 
-            {/* Actions */}
+            {/* Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={() => {
@@ -549,7 +557,7 @@ Option 2 - Paste Link:
         </div>
       )}
 
-      {/* Error Modal */}
+      {/* ================ ERROR MODAL ================ */}
       {showErrorModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative animate-fadeIn">
@@ -560,7 +568,6 @@ Option 2 - Paste Link:
               <X className="w-6 h-6" />
             </button>
 
-            {/* Error Icon */}
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center shadow-lg">
                 <AlertCircle className="w-10 h-10 text-white" />

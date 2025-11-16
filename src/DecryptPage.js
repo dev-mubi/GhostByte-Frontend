@@ -27,7 +27,7 @@ export default function DecryptPage() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [uploadMethod, setUploadMethod] = useState("file"); // "file" or "url"
+  const [uploadMethod, setUploadMethod] = useState("file");
 
   const showError = (message) => {
     setErrorMessage(message);
@@ -37,20 +37,11 @@ export default function DecryptPage() {
   const isValidGhostByteUrl = (url) => {
     try {
       const urlObj = new URL(url);
-      // Check if it's a Supabase storage URL (your storage provider)
-      const validDomains = [
-        "supabase.co",
-        "supabase.com",
-        // Add your specific storage domain here if different
-      ];
-
+      const validDomains = ["supabase.co", "supabase.com"];
       const isValidDomain = validDomains.some((domain) =>
         urlObj.hostname.includes(domain)
       );
-
-      // Check if URL ends with .gbyte
       const isGbyteFile = url.endsWith(".gbyte");
-
       return isValidDomain && isGbyteFile;
     } catch (e) {
       return false;
@@ -65,16 +56,14 @@ export default function DecryptPage() {
         return;
       }
       setFile(selectedFile);
-      setFileUrl(""); // Clear URL if file is selected
+      setFileUrl("");
     }
   };
 
   const handleUrlChange = (e) => {
     const url = e.target.value.trim();
     setFileUrl(url);
-    if (url && file) {
-      setFile(null); // Clear file if URL is entered
-    }
+    if (url && file) setFile(null);
   };
 
   const formatFileSize = (bytes) => {
@@ -87,13 +76,14 @@ export default function DecryptPage() {
 
   const fetchFileFromUrl = async (url) => {
     const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("Failed to download file from URL");
-    }
+    if (!response.ok) throw new Error("Failed to download file from URL");
     const blob = await response.blob();
     return blob;
   };
 
+  // =============================
+  //     UPDATED DECRYPT LOGIC
+  // =============================
   const handleDecrypt = async () => {
     if (!file && !fileUrl) {
       showError("Please upload a file or enter a download link");
@@ -105,7 +95,6 @@ export default function DecryptPage() {
       return;
     }
 
-    // Validate URL if using URL method
     if (fileUrl && !file) {
       if (!isValidGhostByteUrl(fileUrl)) {
         showError(
@@ -121,24 +110,28 @@ export default function DecryptPage() {
       let encryptedBytes;
 
       if (fileUrl && !file) {
-        // Fetch file from URL
         const blob = await fetchFileFromUrl(fileUrl);
         const arrayBuffer = await blob.arrayBuffer();
         encryptedBytes = new Uint8Array(arrayBuffer);
       } else {
-        // Use uploaded file
         const encryptedBuffer = await file.arrayBuffer();
         encryptedBytes = new Uint8Array(encryptedBuffer);
       }
 
-      const decryptedBytes = await decryptFile(encryptedBytes, password);
+      // ==========================================
+      // NEW: decode using new cryptoUtils format
+      // ==========================================
+      const { originalName, data } = await decryptFile(
+        encryptedBytes,
+        password
+      );
 
-      const originalName =
-        localStorage.getItem("originalFilename") || "decrypted-file";
       setOriginalFileName(originalName);
 
-      const blob = new Blob([decryptedBytes]);
+      // Actual decrypted blob
+      const blob = new Blob([data]);
       setDecryptedBlob(blob);
+
       setShowSuccessModal(true);
     } catch (err) {
       if (err.message.includes("Failed to download")) {
@@ -146,7 +139,7 @@ export default function DecryptPage() {
           "Could not download file from the provided URL. Please check the link and try again."
         );
       } else {
-        setShowErrorModal(true);
+        showError("Incorrect password or file is corrupted.");
       }
       console.error("Decryption error:", err);
     } finally {
@@ -154,12 +147,15 @@ export default function DecryptPage() {
     }
   };
 
+  // =============================
+  //      FILE DOWNLOAD
+  // =============================
   const handleDownload = () => {
     if (decryptedBlob) {
       const url = URL.createObjectURL(decryptedBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = originalFileName;
+      a.download = originalFileName || "decrypted-file";
       a.click();
       URL.revokeObjectURL(url);
     }
