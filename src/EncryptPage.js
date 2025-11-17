@@ -24,6 +24,9 @@ import QRCode from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import logo from "./logo.png";
 
+// 7 MB limit
+const MAX_FILE_SIZE_BYTES = 7 * 1024 * 1024;
+
 export default function EncryptPage() {
   const [file, setFile] = useState(null);
   const [password, setPassword] = useState("");
@@ -100,14 +103,28 @@ export default function EncryptPage() {
     setShowPassword(true);
   };
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) setFile(selectedFile);
-  };
-
   const showError = (message) => {
     setErrorMessage(message);
     setShowErrorModal(true);
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+
+    if (!selectedFile) return;
+
+    // Enforce 7 MB limit
+    if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
+      setFile(null);
+      // Optional: clear the input value so user can reselect
+      e.target.value = "";
+      showError(
+        "Maximum allowed file size is 7 MB. Please select a smaller file."
+      );
+      return;
+    }
+
+    setFile(selectedFile);
   };
 
   const handleEncrypt = async () => {
@@ -149,7 +166,7 @@ export default function EncryptPage() {
       if (firstAttempt) {
         setFirstAttempt(false);
         showError(
-          "The server went to sleep it’s waking up now — Please try again, it’ll work this time."
+          "The free server went to sleep. It’s waking up now — please try again, it’ll work this time."
         );
       } else {
         showError("Encryption failed: " + error.message);
@@ -322,7 +339,8 @@ Keep this password safe. Without it, the file cannot be decrypted.
           {/* File Upload Section */}
           <div className="mb-8">
             <label className="block text-sm font-semibold text-[#1B1E28] mb-3">
-              Select File
+              Select File{" "}
+              <span className="text-xs text-gray-500">(Max 7 MB)</span>
             </label>
 
             <div className="relative">
@@ -342,7 +360,9 @@ Keep this password safe. Without it, the file cannot be decrypted.
                     <p className="text-[#1B1E28] font-semibold mb-1">
                       Click to upload file
                     </p>
-                    <p className="text-sm text-gray-500">or drag and drop</p>
+                    <p className="text-sm text-gray-500">
+                      or drag and drop (Max size: 7 MB)
+                    </p>
                   </div>
                 ) : (
                   <div className="flex items-center gap-4 w-full">
