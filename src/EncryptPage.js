@@ -35,6 +35,9 @@ export default function EncryptPage() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [firstAttempt, setFirstAttempt] = useState(true);
+  const [showSuccessPassword, setShowSuccessPassword] = useState(false);
+
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
@@ -139,9 +142,18 @@ export default function EncryptPage() {
       );
 
       setLink(downloadUrl);
+      setShowSuccessPassword(false); // hide password by default in success modal
       setShowSuccessModal(true);
+      setFirstAttempt(true); // reset for next time
     } catch (error) {
-      showError("Encryption failed: " + error.message);
+      if (firstAttempt) {
+        setFirstAttempt(false);
+        showError(
+          "The server went to sleep it’s waking up now — Please try again, it’ll work this time."
+        );
+      } else {
+        showError("Encryption failed: " + error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -455,6 +467,7 @@ Keep this password safe. Without it, the file cannot be decrypted.
           </button>
         </div>
       </div>
+
       {/* Footer */}
       <footer className="bg-[#1B1E28] text-white py-14 md:py-16 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-[#5A5DFF]/10 to-transparent" />
@@ -516,6 +529,7 @@ Keep this password safe. Without it, the file cannot be decrypted.
           </p>
         </div>
       </footer>
+
       {/* SUCCESS MODAL */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
@@ -599,19 +613,32 @@ Keep this password safe. Without it, the file cannot be decrypted.
               </p>
             </div>
 
-            {/* Password Display */}
+            {/* Password Display (hidden by default + toggle) */}
             <div className="mb-6">
               <label className="block text-sm font-semibold text-[#1B1E28] mb-2 flex items-center gap-2">
                 <Lock className="w-4 h-4" />
                 Decryption Password
               </label>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={password}
-                  readOnly
-                  className="flex-1 px-4 py-3 bg-[#F8F9FF] border-2 border-[#5A5DFF]/20 rounded-xl text-sm text-[#1B1E28] font-mono"
-                />
+                <div className="relative flex-1">
+                  <input
+                    type={showSuccessPassword ? "text" : "password"}
+                    value={password}
+                    readOnly
+                    className="w-full px-4 py-3 bg-[#F8F9FF] border-2 border-[#5A5DFF]/20 rounded-xl text-sm text-[#1B1E28] font-mono pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSuccessPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5A5DFF] transition-colors"
+                  >
+                    {showSuccessPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 <button
                   onClick={() => copyToClipboard(password)}
                   className="px-4 py-3 bg-[#5A5DFF] text-white rounded-xl hover:bg-[#4A4DDF] transition-colors flex items-center gap-2"
@@ -741,6 +768,8 @@ Keep this password safe. Without it, the file cannot be decrypted.
                   setFile(null);
                   setPassword("");
                   setLink("");
+                  setShowSuccessPassword(false);
+                  setFirstAttempt(true);
                 }}
                 className="flex-1 py-3 bg-gray-100 text-[#1B1E28] rounded-xl font-semibold hover:bg-gray-200 transition-colors"
               >
