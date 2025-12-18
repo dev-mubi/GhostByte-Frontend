@@ -385,7 +385,7 @@ export default function About() {
 
         {/* Who is behind GhostByte */}
         <section className="mb-10 md:mb-16">
-          {/* <div className="bg-white rounded-3xl border border-[#E0E2FF] shadow-md p-6 md:p-8 flex flex-col md:flex-row gap-8 items-start">
+          <div className="bg-white rounded-3xl border border-[#E0E2FF] shadow-md p-6 md:p-8 flex flex-col md:flex-row gap-8 items-start">
 
             <div className="w-full md:w-1/3 flex justify-center">
               <div className="relative w-40 h-40 md:w-44 md:h-44 rounded-3xl overflow-hidden shadow-lg border border-[#E0E2FF] bg-[#F5F6FF]">
@@ -444,7 +444,7 @@ export default function About() {
                 </a>
               </div>
             </div>
-          </div> */}
+          </div>
         </section>
       </main>
 
